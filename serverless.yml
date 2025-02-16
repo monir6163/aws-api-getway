@@ -1,0 +1,122 @@
+org: monir6163
+app: rest-api
+service: rest-api
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: ${opt:stage, 'dev'}
+  region: ${env:COGNITO_REGION}
+  memorySize: 512
+  timeout: 10
+  environment:
+    TODOS_TABLE: ${self:custom.todosTable}
+    COGNITO_REGION: ${self:provider.region}
+    USERPOOL_ID: ${env:COGNITO_USERPOOL_ID}
+    CLIENT_ID: ${env:COGNITO_CLIENT_ID}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:GetItem
+        - dynamodb:Scan
+        - dynamodb:Query
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: !GetAtt TodosTable.Arn
+    - Effect: Allow
+      Action:
+        - cognito-idp:GetUser
+      Resource: arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USERPOOL_ID}
+
+custom:
+  todosTable: todosTable-${opt:stage, self:provider.stage}
+
+functions:
+  createTodo:
+    handler: functions/todos/todo.createTodo
+    description: Create a new todo
+    events:
+      - http:
+          path: todos
+          method: post
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+  getTodos:
+    handler: functions/todos/todo.getTodos
+    description: Get all todos
+    events:
+      - http:
+          path: todos
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+  getTodo:
+    handler: functions/todos/todo.getTodo
+    description: Get a todo by id
+    events:
+      - http:
+          path: todos/{id}
+          method: get
+          cors: true
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId:
+              Ref: ApiGatewayAuthorizer
+
+plugins:
+  - serverless-offline
+  - serverless-dotenv-plugin
+
+resources:
+  Resources:
+    # DynamoDB Table
+    TodosTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.todosTable}
+        AttributeDefinitions:
+          - AttributeName: id # Primary Key (Partition Key)
+            AttributeType: S
+          - AttributeName: userId # GSI Partition Key
+            AttributeType: S
+          - AttributeName: createdAt # GSI Sort Key
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+        GlobalSecondaryIndexes:
+          - IndexName: userIdIndex
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: createdAt
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+      # API Gateway Authorizer
+    ApiGatewayAuthorizer:
+      Type: AWS::ApiGateway::Authorizer
+      Properties:
+        Name: cognito-authorizer-${self:provider.stage}
+        IdentitySource: method.request.header.Authorization
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        Type: COGNITO_USER_POOLS
+        ProviderARNs:
+          - arn:aws:cognito-idp:${self:provider.region}:${aws:accountId}:userpool/${env:COGNITO_USERPOOL_ID}
+
+    # API Gateway
+    ApiGatewayRestApi:
+      Type: AWS::ApiGateway::RestApi
+      Properties:
+        Name: my-api-${self:provider.stage}

@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.749.0",
+    "@aws-sdk/lib-dynamodb": "^3.749.0",
+    "axios": "^1.7.9",
+    "bcryptjs": "^3.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "jwk-to-pem": "^2.0.7",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-http": "^3.2.0",
+    "serverless-offline": "^14.4.0",
+    "uuid": "^11.0.5"
+  }
+}
