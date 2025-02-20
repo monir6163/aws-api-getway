@@ -64,7 +64,7 @@ module.exports.createTodo = async (event) => {
   }
 };
 
-// get all todo items from the database
+// get all todo items from the database user specific
 module.exports.getTodos = async (event) => {
   try {
     const token = event.headers.Authorization?.split(" ")[1];
@@ -80,6 +80,15 @@ module.exports.getTodos = async (event) => {
     }
     const params = {
       TableName: TODOS_TABLE,
+      FilterExpression: "#userId = :userId",
+      ExpressionAttributeValues: {
+        ":userId": event.requestContext.authorizer.claims.sub,
+      },
+      ExpressionAttributeNames: {
+        "#userId": "userId",
+      },
+      ReturnConsumedCapacity: "TOTAL",
+      ConsistentRead: true,
     };
     const { Items } = await dynamoDb.send(new ScanCommand(params));
     return createResponse(200, "Todos retrieved successfully", Items);
