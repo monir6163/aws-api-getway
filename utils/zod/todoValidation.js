@@ -9,9 +9,7 @@ const todoSchema = z.object({
     .string()
     .nonempty("Description is required")
     .min(10, "Description must be at least 10 characters long"),
-  status: z.enum(["active", "completed", "pending"]).optional(),
-  dueDate: z.string().optional(),
-  priority: z.enum(["low", "medium", "high"]).optional(),
+  status: z.enum(["completed", "pending"]).optional(),
 });
 
 module.exports = { todoSchema };
